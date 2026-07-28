@@ -1,6 +1,6 @@
 # Orpheus Front
 
-Frontend web de Project Orpheus. Construido con **Vue.js**, maneja la autenticación con Spotify, el catálogo de vinilos y la gestión de dispositivos.
+Frontend web de Project Orpheus. Construido con **Vue.js**. En el MVP maneja la autenticación con Spotify, el catálogo de vinilos y la gestión básica de dispositivos.
 
 ---
 
@@ -31,7 +31,7 @@ Frontend web de Project Orpheus. Construido con **Vue.js**, maneja la autenticac
 
 ### `/auth/callback` — OAuth Callback *(pública)*
 - Spotify redirige aquí tras la aprobación del usuario
-- El frontend recibe el `code` y lo envía al API (`GET /auth/callback`)
+- El frontend recibe el `code` y lo envía al API (`GET /auth/exchange`)
 - En éxito: la API setea la cookie de sesión JWT, redirige a `/home`
 - En error: muestra mensaje de error, vuelve a `/`
 
@@ -51,11 +51,9 @@ Frontend web de Project Orpheus. Construido con **Vue.js**, maneja la autenticac
 Se abre desde la tarjeta del vinilo pendiente en `/library`. No tiene ruta propia — es un modal sobre la vista actual. La autorización se valida en el API al hacer `PATCH /vinyls/{id}`; en el frontend el botón "Configurar" solo se renderiza si el usuario autenticado es el `created_by`.
 
 **Paso 1 — Buscar recurso**
-- Campo de búsqueda: llama a `GET /resources/search?q=...`
-- Los resultados muestran **dos secciones diferenciadas**:
-  - 🌐 Resultados de Spotify (búsqueda en vivo)
-  - 📁 Recursos precargados del usuario (desde tabla `playlists`)
-- Cada resultado muestra: portada, nombre, tipo (álbum/playlist), origen
+- Campo de búsqueda: llama a `GET /resources/search?query=...`
+- Los resultados vienen de Spotify en vivo
+- Cada resultado muestra: portada, nombre, tipo (álbum/playlist), artista/owner
 
 **Paso 2 — Confirmar**
 - Usuario selecciona un recurso
@@ -66,19 +64,13 @@ Se abre desde la tarjeta del vinilo pendiente en `/library`. No tiene ruta propi
 **Paso 3 — Listo**
 - Modal muestra confirmación, se cierra y la tarjeta en `/library` se actualiza al estado `configured`
 
-### `/playlists` — Recursos Precargados *(requiere auth)*
-- Lista los recursos guardados por el usuario autenticado (álbumes y playlists de Spotify)
-- Permite buscar y guardar nuevos recursos desde Spotify (`POST /playlists`)
-- Permite eliminar recursos guardados (`DELETE /playlists/{id}`)
-- Útil para tener los recursos favoritos disponibles sin depender de la búsqueda en vivo al momento de configurar un vinilo
-
 ### `/devices` — Mis Dispositivos *(requiere auth)*
 - Lista los dispositivos registrados por el usuario autenticado
 - Muestra: nombre del dispositivo, MAC address, último heartbeat, estado (online/offline)
 - Formulario para registrar un nuevo dispositivo:
   - Campo MAC address (se obtiene corriendo `cat /sys/class/net/wlan0/address` en la Pi)
   - Campo nombre descriptivo (ej. "Orpheus #1")
-  - Llama a `POST /device/register`
+  - Llama a `POST /devices/`
 
 ---
 
@@ -109,31 +101,15 @@ Usuario en /library  (ve un vinilo pendiente suyo)
     │
     └─► Hace clic en "Configurar"  →  abre modal sobre /library
             │
-            └─► Escribe búsqueda  →  GET /resources/search?q=...
+            └─► Escribe búsqueda  →  GET /resources/search?query=...
                     │
-                    └─► Ve resultados combinados (Spotify + precargados)
+                    └─► Ve resultados de Spotify
                             │
                             └─► Selecciona recurso + ingresa nombre personalizado
                                     │
                                     └─► PATCH /vinyls/{id}
                                             │
                                             └─► Modal cierra, tarjeta se actualiza a "configured"
-```
-
-### Flujo de precargar un recurso
-
-```
-Usuario en /playlists
-    │
-    └─► Busca álbum o playlist en Spotify
-            │
-            └─► GET /resources/search?q=...  (solo fuente: spotify)
-                    │
-                    └─► Selecciona recurso  →  POST /playlists
-                            │
-                            └─► Recurso guardado, aparece en su lista local
-                                    │
-                                    └─► Disponible en /vinyls/{id}/configure sin búsqueda en vivo
 ```
 
 ---
@@ -152,3 +128,16 @@ Usuario en /playlists
 | Variable | Descripción |
 |---|---|
 | `VITE_API_BASE_URL` | URL base del API de Orpheus (ej. `http://localhost:8000`) |
+
+---
+
+## Estado actual del código
+
+El frontend actual implementa el flujo OAuth contra `GET /auth/exchange`, restaura sesión con `GET /auth/me`, y consume la API para `/home`, `/library` y `/devices`.
+
+## Post-MVP / Backlog
+
+- Agregar logout real cuando exista endpoint backend para borrar/expirar cookie.
+- Mejorar estados vacíos y mensajes de error con códigos específicos de API.
+- Agregar paginación o infinite scroll para bibliotecas grandes.
+- Agregar `/playlists` y endpoints asociados cuando se decida incorporar recursos precargados.

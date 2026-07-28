@@ -15,7 +15,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import axios from 'axios'
+import { exchangeAuthCode } from '@/services/api'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -31,11 +31,8 @@ onMounted(async () => {
   }
 
   try {
-    await axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/exchange`, {
-      params: { code },
-      withCredentials: true,
-    })
-    auth.setAuthenticated(true)
+    const { user } = await exchangeAuthCode(code)
+    auth.setUser(user)
     router.push({ name: 'home' })
   } catch {
     error.value = 'Error al autenticar. Intentá de nuevo.'
